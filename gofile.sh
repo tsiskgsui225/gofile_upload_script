@@ -7,7 +7,7 @@ BLUE='\u001B[0;34m'
 NC='\u001B[0m'
 
 # Your Gofile account token
-TOKEN="GOFILE_TOKEN_HERE"
+TOKEN="l6AVXoGoaVpPtiAiOu2CKuzZutTpvQhu"
 
 # Default upload endpoint (automatic region selection)
 UPLOAD_ENDPOINT="https://upload.gofile.io/uploadfile"
