@@ -2,7 +2,7 @@
 
 ## Installation
 
-1.  **Clone the repository:**
+1.  **Download the script:**
     ```bash
     wget https://github.com/user-attachments/files/23481561/gofile.sh
     chmod +x gofile.sh
