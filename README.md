@@ -21,8 +21,8 @@ Before using this script, you need to have the following installed:
 
 1.  **Clone the repository:**
     ```bash
-    git clone <repository_url>
-    cd <repository_directory>
+    git clone https://github.com/tsiskgsui225/gofile_upload_script.git
+    cd gofile_upload_script
     ```
 
 2.  **Make the script executable:**
