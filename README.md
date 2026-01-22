@@ -1,24 +1,48 @@
-# Gofile Upload Script
+# Gofile Upload Script (QR + Telegram Edition)
 
-A simple Bash script to upload files to Gofile.io with support for folder uploads and region selection.
+A powerful Bash script to upload files to Gofile.io with a stylish UI, real-time speed, QR code generation, and Telegram notifications.
 
-## Quick Start
+## ✨ Features
+
+- **Stylish Progress Bar**: Unicode block design `[████░░░░]`.
+- **Real-Time Speed**: Displays current upload speed in MB/s or KB/s.
+- **Upload Timer**: Shows exact duration (`Done in 1 min 23.45 sec`).
+- **QR Code Generation**: Instantly generates a QR code in the terminal for the download link.
+- **Telegram Notifications**: Sends a message to your Telegram bot with file details and link.
+- **Region Support**: Choose specific upload regions (EU, NA, Asia, etc.).
+
+## 🚀 Quick Start
 
 Run the following command to download and make the script executable:
 
 ```bash
-wget https://raw.githubusercontent.com/tsiskgsui225/gofile_upload_script/main/gofile.sh && chmod +x gofile.sh
+wget https://raw.githubusercontent.com/tsiskgsui225/gofile_upload_script/feat/qr-code/gofile_qr.sh && chmod +x gofile_qr.sh
 ```
 
-## Dependencies
+## ⚙️ Configuration
 
-- `curl`
-- `jq`
-
-## Usage
+### Telegram Notifications (Optional)
+To enable Telegram notifications, open the script(`gofile_qr.sh`) and edit the top section:
 
 ```bash
-./gofile.sh [OPTIONS] <file_path>
+# Telegram Config
+TELEGRAM_BOT_TOKEN="YOUR_BOT_TOKEN_HERE"
+TELEGRAM_CHAT_ID="YOUR_CHAT_ID_HERE"
+```
+
+1. Get a **Bot Token** from [@BotFather](https://t.me/BotFather).
+2. Get your **Chat ID** from [@userinfobot](https://t.me/userinfobot).
+
+## 📦 Dependencies
+
+- `curl` (Network requests)
+- `jq` (JSON parsing)
+- `awk` (Math/Text processing)
+
+## 🛠 Usage
+
+```bash
+./gofile_qr.sh [OPTIONS] <file_path>
 ```
 
 ### Options
@@ -35,15 +59,15 @@ wget https://raw.githubusercontent.com/tsiskgsui225/gofile_upload_script/main/go
 
 **Basic Upload:**
 ```bash
-./gofile.sh archive.zip
+./gofile_qr.sh archive.zip
 ```
 
 **Upload to a specific folder:**
 ```bash
-./gofile.sh -f "folder-id-here" image.png
+./gofile_qr.sh -f "folder-id-here" image.png
 ```
 
 **Upload using a specific region:**
 ```bash
-./gofile.sh -r eu-par video.mp4
+./gofile_qr.sh -r eu-par video.mp4
 ```
