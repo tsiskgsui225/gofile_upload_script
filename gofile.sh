@@ -6,19 +6,12 @@ YELLOW='\u001B[1;33m'
 BLUE='\u001B[0;34m'
 NC='\u001B[0m'
 
-# Your Gofile account tokens (add more tokens to the array)
 TOKENS=(
     "l6AVXoGoaVpPtiAiOu2CKuzZutTpvQhu"
-    # "put_your_second_token_here"
 )
-
-# Select a random token
 TOKEN=${TOKENS[$RANDOM % ${#TOKENS[@]}]}
-
-# Default upload endpoint (automatic region selection)
 UPLOAD_ENDPOINT="https://upload.gofile.io/uploadfile"
 
-# Function to display usage
 usage() {
     echo -e "${BLUE}Usage:${NC} $0 [OPTIONS] <file_path>"
     echo ""
@@ -37,18 +30,14 @@ usage() {
     exit 1
 }
 
-# Function to check dependencies
 check_dependencies() {
     local missing_deps=()
-    
     if ! command -v curl &> /dev/null; then
         missing_deps+=("curl")
     fi
-    
     if ! command -v jq &> /dev/null; then
         missing_deps+=("jq")
     fi
-    
     if [ ${#missing_deps[@]} -ne 0 ]; then
         echo -e "${RED}Error: Missing required dependencies: ${missing_deps[*]}${NC}"
         echo "Please install them using your package manager."
@@ -56,7 +45,6 @@ check_dependencies() {
     fi
 }
 
-# Function to format file size
 format_size() {
     local size=$1
     if [ $size -lt 1024 ]; then
@@ -70,7 +58,6 @@ format_size() {
     fi
 }
 
-# Function to list files in current directory
 list_files() {
     echo -e "${BLUE}Files in current directory:${NC}"
     echo ""
@@ -86,52 +73,74 @@ list_files() {
     echo ""
 }
 
-# Function to upload file
+draw_bar() {
+    local width=30
+    local char_filled="█"
+    local char_empty="░"
+    
+    while IFS= read -r -d $'\r' line; do
+        read -r percent speed <<< $(echo "$line" | awk '{print $1, $12}')
+        if [[ "$percent" =~ ^[0-9]+$ ]]; then
+            local speed_display="$speed"
+            if [[ "$speed" =~ ^[0-9]+$ ]]; then
+                if [ "$speed" -ge 1048576 ]; then
+                    speed_display=$(awk -v s="$speed" 'BEGIN {printf "%.1f MB/s", s/1048576}')
+                elif [ "$speed" -ge 1024 ]; then
+                    speed_display=$(awk -v s="$speed" 'BEGIN {printf "%.1f KB/s", s/1024}')
+                else
+                    speed_display="${speed} B/s"
+                fi
+            else
+                 speed_display="${speed}/s"
+            fi
+            
+            local num_filled=$(( (percent * width) / 100 ))
+            local num_empty=$(( width - num_filled ))
+            local bar=""
+            for ((i=0; i<num_filled; i++)); do bar+="${char_filled}"; done
+            for ((i=0; i<num_empty; i++)); do bar+="${char_empty}"; done
+            printf "\033[1G\033[K${BLUE}Uploading: [${bar}] ${percent}%%   ${speed_display}${NC}"
+        fi
+    done
+    echo ""
+}
+
 upload_file() {
     local file_path="$1"
     local folder_id="$2"
     local upload_url="$3"
     local debug_mode="$4"
     
-    # Check if file exists
     if [ ! -f "$file_path" ]; then
         echo -e "${RED}Error: File '$file_path' not found${NC}"
         exit 1
     fi
     
-    # Get file size
     local file_size=$(stat -c%s "$file_path" 2>/dev/null || stat -f%z "$file_path" 2>/dev/null)
     local formatted_size=$(format_size $file_size)
     
     echo -e "${BLUE}Uploading:${NC} $(basename "$file_path") ${YELLOW}($formatted_size)${NC}"
     echo ""
     
-    # Create temporary file for response
     local temp_response=$(mktemp)
     
-    # Prepare curl command
     if [ -n "$folder_id" ]; then
         echo -e "${BLUE}Uploading to folder:${NC} $folder_id"
-        curl -X POST \
-            -# \
+        { curl -X POST \
             -H "Authorization: Bearer $TOKEN" \
             -F "file=@$file_path" \
             -F "folderId=$folder_id" \
-            "$upload_url" > "$temp_response" 2>&1
+            "$upload_url" 2>&1 1>&3 | draw_bar; } 3> "$temp_response"
     else
-        curl -X POST \
-            -# \
+        { curl -X POST \
             -H "Authorization: Bearer $TOKEN" \
             -F "file=@$file_path" \
-            "$upload_url" > "$temp_response" 2>&1
+            "$upload_url" 2>&1 1>&3 | draw_bar; } 3> "$temp_response"
     fi
     
     echo ""
-    
-    # Read response
     local response=$(cat "$temp_response")
     
-    # Debug mode - show full response
     if [ "$debug_mode" = true ]; then
         echo -e "${YELLOW}=== DEBUG: Full Response ===${NC}"
         echo "$response"
@@ -139,10 +148,7 @@ upload_file() {
         echo ""
     fi
     
-    # Extract JSON from response (filter out progress bar)
     local json_response=$(echo "$response" | grep -o '{.*}' | tail -1)
-    
-    # Check if we got valid JSON
     if [ -z "$json_response" ]; then
         echo -e "${RED}Error: No JSON response received${NC}"
         echo -e "${YELLOW}Raw response:${NC}"
@@ -151,7 +157,6 @@ upload_file() {
         exit 1
     fi
     
-    # Validate JSON
     if ! echo "$json_response" | jq . >/dev/null 2>&1; then
         echo -e "${RED}Error: Invalid JSON response${NC}"
         echo -e "${YELLOW}Response:${NC} $json_response"
@@ -159,21 +164,16 @@ upload_file() {
         exit 1
     fi
     
-    # Parse status
     local status=$(echo "$json_response" | jq -r '.status // "unknown"')
-    
     if [ "$status" == "ok" ]; then
         echo -e "${GREEN}✓ Upload successful!${NC}"
         echo ""
-        
-        # Extract data fields safely
         local download_page=$(echo "$json_response" | jq -r '.data.downloadPage // "N/A"')
         local file_id=$(echo "$json_response" | jq -r '.data.id // .data.fileId // "N/A"')
         local parent_folder=$(echo "$json_response" | jq -r '.data.parentFolder // "N/A"')
         local file_name=$(echo "$json_response" | jq -r '.data.name // .data.fileName // "N/A"')
         local md5=$(echo "$json_response" | jq -r '.data.md5 // "N/A"')
         
-        # Only show details in debug mode
         if [ "$debug_mode" = true ]; then
             echo -e "${BLUE}File Details:${NC}"
             echo "  Name: $file_name"
@@ -184,27 +184,20 @@ upload_file() {
         fi
         echo -e "${GREEN}Download Page:${NC} $download_page"
         echo ""
-        
     else
-        # Try to extract error message
         local error_msg=$(echo "$json_response" | jq -r '.error // .message // "Unknown error"')
-        
         echo -e "${RED}✗ Upload failed!${NC}"
         echo -e "${RED}Status:${NC} $status"
         echo -e "${RED}Error:${NC} $error_msg"
         echo ""
         echo -e "${YELLOW}Full response:${NC}"
         echo "$json_response" | jq . 2>/dev/null || echo "$json_response"
-        
         rm -f "$temp_response"
         exit 1
     fi
-    
-    # Clean up
     rm -f "$temp_response"
 }
 
-# Main script
 main() {
     local file_path=""
     local folder_id=""
@@ -212,51 +205,32 @@ main() {
     local list_mode=false
     local debug_mode=false
     
-    # Check dependencies
     check_dependencies
     
-    # Parse command line arguments
     while getopts "f:r:ldh" opt; do
         case $opt in
-            f)
-                folder_id="$OPTARG"
-                ;;
-            r)
-                region="$OPTARG"
-                ;;
-            l)
-                list_mode=true
-                ;;
-            d)
-                debug_mode=true
-                ;;
-            h)
-                usage
-                ;;
-            *)
-                usage
-                ;;
+            f) folder_id="$OPTARG" ;;
+            r) region="$OPTARG" ;;
+            l) list_mode=true ;;
+            d) debug_mode=true ;;
+            h) usage ;;
+            *) usage ;;
         esac
     done
-    
     shift $((OPTIND-1))
     
-    # List mode
     if [ "$list_mode" = true ]; then
         list_files
         exit 0
     fi
     
-    # Check if file path is provided
     if [ -z "$1" ]; then
         echo -e "${RED}Error: No file specified${NC}"
         echo ""
         usage
     fi
-    
     file_path="$1"
     
-    # Set upload endpoint based on region
     if [ -n "$region" ]; then
         case $region in
             eu-par)
@@ -288,10 +262,7 @@ main() {
                 ;;
         esac
     fi
-    
-    # Upload file
     upload_file "$file_path" "$folder_id" "$UPLOAD_ENDPOINT" "$debug_mode"
 }
 
-# Run main function
 main "$@"
