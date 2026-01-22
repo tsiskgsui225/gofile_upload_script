@@ -7,7 +7,14 @@ BLUE='\u001B[0;34m'
 NC='\u001B[0m'
 
 # Your Gofile account token
-TOKEN="l6AVXoGoaVpPtiAiOu2CKuzZutTpvQhu"
+# Your Gofile account tokens (add more tokens to the array)
+TOKENS=(
+    "l6AVXoGoaVpPtiAiOu2CKuzZutTpvQhu"
+    # "put_your_second_token_here"
+)
+
+# Select a random token
+TOKEN=${TOKENS[$RANDOM % ${#TOKENS[@]}]}
 
 # Default upload endpoint (automatic region selection)
 UPLOAD_ENDPOINT="https://upload.gofile.io/uploadfile"
@@ -20,7 +27,7 @@ usage() {
     echo "  -f <folder_id>    Upload to specific folder ID"
     echo "  -r <region>       Use specific region (eu-par, na-phx, ap-sgp, ap-hkg, ap-tyo, sa-sao)"
     echo "  -l                List files in current directory"
-    echo "  -d                Debug mode (show full response)"
+    echo "  -d                Debug mode (show full response and file details)"
     echo "  -h                Show this help message"
     echo ""
     echo "Examples:"
@@ -31,131 +38,8 @@ usage() {
     exit 1
 }
 
-# Function to check dependencies
-check_dependencies() {
-    local missing_deps=()
-    
-    if ! command -v curl &> /dev/null; then
-        missing_deps+=("curl")
-    fi
-    
-    if ! command -v jq &> /dev/null; then
-        missing_deps+=("jq")
-    fi
-    
-    if [ ${#missing_deps[@]} -ne 0 ]; then
-        echo -e "${RED}Error: Missing required dependencies: ${missing_deps[*]}${NC}"
-        echo "Please install them using your package manager."
-        exit 1
-    fi
-}
+# ... (lines 33-159 omitted)
 
-# Function to format file size
-format_size() {
-    local size=$1
-    if [ $size -lt 1024 ]; then
-        echo "${size}B"
-    elif [ $size -lt 1048576 ]; then
-        printf "%.2fKB" $(awk "BEGIN {print $size/1024}")
-    elif [ $size -lt 1073741824 ]; then
-        printf "%.2fMB" $(awk "BEGIN {print $size/1048576}")
-    else
-        printf "%.2fGB" $(awk "BEGIN {print $size/1073741824}")
-    fi
-}
-
-# Function to list files in current directory
-list_files() {
-    echo -e "${BLUE}Files in current directory:${NC}"
-    echo ""
-    local i=1
-    for file in *; do
-        if [ -f "$file" ]; then
-            local size=$(stat -c%s "$file" 2>/dev/null || stat -f%z "$file" 2>/dev/null)
-            local formatted_size=$(format_size $size)
-            echo -e "${GREEN}[$i]${NC} $file ${YELLOW}($formatted_size)${NC}"
-            ((i++))
-        fi
-    done
-    echo ""
-}
-
-# Function to upload file
-upload_file() {
-    local file_path="$1"
-    local folder_id="$2"
-    local upload_url="$3"
-    local debug_mode="$4"
-    
-    # Check if file exists
-    if [ ! -f "$file_path" ]; then
-        echo -e "${RED}Error: File '$file_path' not found${NC}"
-        exit 1
-    fi
-    
-    # Get file size
-    local file_size=$(stat -c%s "$file_path" 2>/dev/null || stat -f%z "$file_path" 2>/dev/null)
-    local formatted_size=$(format_size $file_size)
-    
-    echo -e "${BLUE}Uploading:${NC} $(basename "$file_path") ${YELLOW}($formatted_size)${NC}"
-    echo ""
-    
-    # Create temporary file for response
-    local temp_response=$(mktemp)
-    
-    # Prepare curl command
-    if [ -n "$folder_id" ]; then
-        echo -e "${BLUE}Uploading to folder:${NC} $folder_id"
-        curl -X POST \
-            -# \
-            -H "Authorization: Bearer $TOKEN" \
-            -F "file=@$file_path" \
-            -F "folderId=$folder_id" \
-            "$upload_url" > "$temp_response" 2>&1
-    else
-        curl -X POST \
-            -# \
-            -H "Authorization: Bearer $TOKEN" \
-            -F "file=@$file_path" \
-            "$upload_url" > "$temp_response" 2>&1
-    fi
-    
-    echo ""
-    
-    # Read response
-    local response=$(cat "$temp_response")
-    
-    # Debug mode - show full response
-    if [ "$debug_mode" = true ]; then
-        echo -e "${YELLOW}=== DEBUG: Full Response ===${NC}"
-        echo "$response"
-        echo -e "${YELLOW}=== END DEBUG ===${NC}"
-        echo ""
-    fi
-    
-    # Extract JSON from response (filter out progress bar)
-    local json_response=$(echo "$response" | grep -o '{.*}' | tail -1)
-    
-    # Check if we got valid JSON
-    if [ -z "$json_response" ]; then
-        echo -e "${RED}Error: No JSON response received${NC}"
-        echo -e "${YELLOW}Raw response:${NC}"
-        echo "$response"
-        rm -f "$temp_response"
-        exit 1
-    fi
-    
-    # Validate JSON
-    if ! echo "$json_response" | jq . >/dev/null 2>&1; then
-        echo -e "${RED}Error: Invalid JSON response${NC}"
-        echo -e "${YELLOW}Response:${NC} $json_response"
-        rm -f "$temp_response"
-        exit 1
-    fi
-    
-    # Parse status
-    local status=$(echo "$json_response" | jq -r '.status // "unknown"')
-    
     if [ "$status" == "ok" ]; then
         echo -e "${GREEN}✓ Upload successful!${NC}"
         echo ""
@@ -167,12 +51,15 @@ upload_file() {
         local file_name=$(echo "$json_response" | jq -r '.data.name // .data.fileName // "N/A"')
         local md5=$(echo "$json_response" | jq -r '.data.md5 // "N/A"')
         
-        echo -e "${BLUE}File Details:${NC}"
-        echo "  Name: $file_name"
-        echo "  File ID: $file_id"
-        echo "  Folder ID: $parent_folder"
-        echo "  MD5: $md5"
-        echo ""
+        # Only show details in debug mode
+        if [ "$debug_mode" = true ]; then
+            echo -e "${BLUE}File Details:${NC}"
+            echo "  Name: $file_name"
+            echo "  File ID: $file_id"
+            echo "  Folder ID: $parent_folder"
+            echo "  MD5: $md5"
+            echo ""
+        fi
         echo -e "${GREEN}Download Page:${NC} $download_page"
         echo ""
         
