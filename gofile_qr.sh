@@ -219,7 +219,7 @@ upload_file() {
                 -d chat_id="$TELEGRAM_CHAT_ID" \
                 -d text="✅ <b>Upload Complete!</b>
                 
-📂 <b>File:</b> $clean_file_name
+📂 <b>File:</b> <code>$clean_file_name</code>
 📦 <b>Size:</b> $formatted_size
 🔗 <b>Link:</b> $clean_link
 ⏱ <b>Time:</b> $time_msg
