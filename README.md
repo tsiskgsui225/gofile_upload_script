@@ -2,6 +2,14 @@
 
 A simple Bash script to upload files to Gofile.io with support for folder uploads and region selection.
 
+## Quick Start
+
+Run the following command to download and make the script executable:
+
+```bash
+wget https://raw.githubusercontent.com/tsiskgsui225/gofile_upload_script/main/gofile.sh && chmod +x gofile.sh
+```
+
 ## Dependencies
 
 - `curl`
