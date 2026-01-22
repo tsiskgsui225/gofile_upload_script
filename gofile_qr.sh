@@ -6,6 +6,10 @@ YELLOW='\u001B[1;33m'
 BLUE='\u001B[0;34m'
 NC='\u001B[0m'
 
+# Telegram Config
+TELEGRAM_BOT_TOKEN="YOUR_BOT_TOKEN"
+TELEGRAM_CHAT_ID="YOUR_CHAT_ID"
+
 TOKENS=(
     "l6AVXoGoaVpPtiAiOu2CKuzZutTpvQhu"
 )
@@ -203,6 +207,30 @@ upload_file() {
         echo -e "${BLUE}QR Code:${NC}"
         curl -s "https://qrenco.de/$download_page"
         echo ""
+        
+        # Send Telegram Notification
+        if [ "$TELEGRAM_BOT_TOKEN" != "YOUR_BOT_TOKEN" ] && [ "$TELEGRAM_CHAT_ID" != "YOUR_CHAT_ID" ]; then
+            echo -e "${BLUE}Sending Telegram Notification...${NC}"
+            curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
+                -d chat_id="$TELEGRAM_CHAT_ID" \
+                -d text="✅ *Upload Complete!*
+                
+📂 *File:* $file_name
+📦 *Size:* $formatted_size
+🔗 *Link:* $download_page
+⏱ *Time:* $time_msg
+" \
+                -d parse_mode="Markdown" > /dev/null
+            if [ $? -eq 0 ]; then
+                echo -e "${GREEN}✓ Notification sent!${NC}"
+            else
+                echo -e "${RED}✗ Notification failed!${NC}"
+            fi
+            echo ""
+        else
+            echo -e "${YELLOW}Tip: Configure TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in the script to enable notifications.${NC}"
+            echo ""
+        fi
     else
         local error_msg=$(echo "$json_response" | jq -r '.error // .message // "Unknown error"')
         echo -e "${RED}✗ Upload failed!${NC}"
