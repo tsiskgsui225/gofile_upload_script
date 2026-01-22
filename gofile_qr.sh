@@ -208,23 +208,29 @@ upload_file() {
         curl -s "https://qrenco.de/$download_page"
         echo ""
         
-        # Send Telegram Notification
         if [ "$TELEGRAM_BOT_TOKEN" != "YOUR_BOT_TOKEN" ] && [ "$TELEGRAM_CHAT_ID" != "YOUR_CHAT_ID" ]; then
             echo -e "${BLUE}Sending Telegram Notification...${NC}"
-            curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
+            
+            # Escape HTML special characters in variables
+            local clean_file_name=$(echo "$file_name" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g')
+            local clean_link=$(echo "$download_page" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g')
+            
+            local tg_response=$(curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
                 -d chat_id="$TELEGRAM_CHAT_ID" \
-                -d text="✅ *Upload Complete!*
+                -d text="✅ <b>Upload Complete!</b>
                 
-📂 *File:* $file_name
-📦 *Size:* $formatted_size
-🔗 *Link:* $download_page
-⏱ *Time:* $time_msg
+📂 <b>File:</b> $clean_file_name
+📦 <b>Size:</b> $formatted_size
+🔗 <b>Link:</b> $clean_link
+⏱ <b>Time:</b> $time_msg
 " \
-                -d parse_mode="Markdown" > /dev/null
-            if [ $? -eq 0 ]; then
+                -d parse_mode="HTML")
+            
+            if [[ "$tg_response" == *'"ok":true'* ]]; then
                 echo -e "${GREEN}✓ Notification sent!${NC}"
             else
                 echo -e "${RED}✗ Notification failed!${NC}"
+                echo -e "${YELLOW}Telegram Error:${NC} $tg_response"
             fi
             echo ""
         else
