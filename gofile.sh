@@ -124,6 +124,8 @@ upload_file() {
     
     local temp_response=$(mktemp)
     
+    local start_time=$(date +%s.%N)
+    
     if [ -n "$folder_id" ]; then
         echo -e "${BLUE}Uploading to folder:${NC} $folder_id"
         { curl -X POST \
@@ -137,6 +139,8 @@ upload_file() {
             -F "file=@$file_path" \
             "$upload_url" 2>&1 1>&3 | draw_bar; } 3> "$temp_response"
     fi
+    
+    local end_time=$(date +%s.%N)
     
     echo ""
     local response=$(cat "$temp_response")
@@ -166,7 +170,17 @@ upload_file() {
     
     local status=$(echo "$json_response" | jq -r '.status // "unknown"')
     if [ "$status" == "ok" ]; then
-        echo -e "${GREEN}✓ Upload successful!${NC}"
+        local time_msg=$(awk -v start="$start_time" -v end="$end_time" 'BEGIN {
+            duration = end - start;
+            if (duration < 60) {
+                printf "%.2f sec", duration
+            } else {
+                mins = int(duration/60);
+                secs = duration % 60;
+                printf "%d min %.2f sec", mins, secs
+            }
+        }')
+        echo -e "${GREEN}✓ Upload successful!${NC} ${YELLOW}(Done in $time_msg)${NC}"
         echo ""
         local download_page=$(echo "$json_response" | jq -r '.data.downloadPage // "N/A"')
         local file_id=$(echo "$json_response" | jq -r '.data.id // .data.fileId // "N/A"')
@@ -265,4 +279,4 @@ main() {
     upload_file "$file_path" "$folder_id" "$UPLOAD_ENDPOINT" "$debug_mode"
 }
 
-main "$@"
+main "$@"  
